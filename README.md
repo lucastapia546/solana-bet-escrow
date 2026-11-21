@@ -1,5 +1,7 @@
 # Bet Between Friends: a Solana escrow program
 
+**Live UI:** https://lucastapia546.github.io/solana-bet-escrow/ (Demo mode works with no wallet; Devnet mode talks to the deployed program via Phantom)
+
 Two friends bet SOL, and a Solana program holds the money until a judge they both trust picks the winner.
 Nobody can run off with the pot, not even the judge.
 
