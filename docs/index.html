@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bet Between Friends</title>
+<script src="https://unpkg.com/@solana/web3.js@1.98.0/lib/index.iife.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #171920; --panel2: #1f222b; --line: #2b2f3a;
+    --text: #eceef3; --muted: #9aa1b2; --accent: #9945ff; --accent2: #14f195;
+    --warn: #ffb84d; --bad: #ff5d6c; --good: #14f195;
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f7fb; --panel: #ffffff; --panel2: #f0f2f7; --line: #dde1ea;
+    --text: #15171c; --muted: #5d6475; --accent: #7a2ff0; --accent2: #0b9e63;
+    --warn: #b36b00; --bad: #d12c3d; --good: #0b9e63;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -0.02em; }
+  h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--muted); margin: 4px 0 0; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .tabs { display: inline-flex; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+  .tabs button { border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 8px; font: inherit; cursor: pointer; }
+  .tabs button.on { background: var(--panel2); color: var(--text); font-weight: 600; }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; margin-top: 20px; }
+  @media (min-width: 820px) { .grid { grid-template-columns: 360px 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  input, select { width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 9px 10px; font: inherit; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .btn { border: 0; border-radius: 9px; padding: 10px 14px; font: inherit; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; }
+  .btn.alt { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  .btn.good { background: var(--accent2); color: #062a1b; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .wallets { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+  .wallet { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px; cursor: pointer; text-align: left; color: var(--text); font: inherit; }
+  .wallet.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .wallet b { display: block; font-size: 13px; }
+  .wallet span { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bet { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-top: 12px; }
+  .bet-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+  .bet q { font-weight: 600; font-size: 16px; }
+  .pot { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--accent2); white-space: nowrap; }
+  .steps { display: flex; gap: 6px; margin: 12px 0 4px; }
+  .steps div { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+  .steps div.done { background: var(--accent2); }
+  .steps div.cancel { background: var(--bad); }
+  .meta { font-size: 13px; color: var(--muted); display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin-top: 8px; }
+  .meta code { color: var(--text); }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+  .badge.open { color: var(--warn); border-color: var(--warn); }
+  .badge.locked { color: var(--accent); border-color: var(--accent); }
+  .badge.won { color: var(--good); border-color: var(--good); }
+  .badge.cancelled { color: var(--bad); border-color: var(--bad); }
+  .log { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px; max-height: 220px; overflow: auto; margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .log .ok { color: var(--good); } .log .err { color: var(--bad); } .log .info { color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 28px 0; }
+  .hidden { display: none !important; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Bet Between <span>Friends</span></h1>
+      <p class="sub">Two friends bet SOL. A Solana program holds the pot until the judge picks a winner.</p>
+    </div>
+    <div class="tabs" role="tablist">
+      <button id="tab-demo" class="on" onclick="setMode('demo')">Demo</button>
+      <button id="tab-live" onclick="setMode('live')">Devnet</button>
+    </div>
+  </header>
+
+  <!-- ===== DEMO MODE ===== -->
+  <div id="demo" class="grid">
+    <div>
+      <div class="card">
+        <h2>Who are you?</h2>
+        <div class="wallets" id="wallets"></div>
+        <p class="note">Switch wallets to act as each person. Try doing something you're not allowed to: the program refuses.</p>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>New bet</h2>
+        <label for="d-desc">What's the bet?</label>
+        <input id="d-desc" maxlength="100" value="Will it rain tomorrow?">
+        <label for="d-stake">Stake per player (SOL)</label>
+        <input id="d-stake" type="number" min="0" step="0.1" value="1">
+        <label for="d-b">Opponent</label>
+        <select id="d-b"></select>
+        <label for="d-judge">Judge</label>
+        <select id="d-judge"></select>
+        <div class="row"><button class="btn" onclick="demoCreate()">Create bet &amp; deposit</button></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Bets</h2>
+        <div id="bets"><div class="empty">No bets yet. Create one on the left.</div></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>Program log</h2>
+        <pre class="log" id="log"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LIVE MODE ===== -->
+  <div id="live" class="grid hidden">
+    <div>
+      <div class="card">
+        <h2>Connect</h2>
+        <label for="l-pid">Program ID (from Solana Playground after Deploy)</label>
+        <input id="l-pid" placeholder="Paste your deployed program ID">
+        <div class="row">
+          <button class="btn" id="l-connect" onclick="liveConnect()">Connect Phantom</button>
+        </div>
+        <p class="note" id="l-who">Not connected. Uses Solana devnet.</p>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>New bet (you are player A)</h2>
+        <label for="l-desc">What's the bet?</label>
+        <input id="l-desc" maxlength="100" value="Will it rain tomorrow?">
+        <label for="l-stake">Stake per player (SOL)</label>
+        <input id="l-stake" type="number" min="0" step="0.01" value="0.05">
+        <label for="l-b">Opponent's wallet address</label>
+        <input id="l-b" placeholder="Player B address">
+        <label for="l-judge">Judge's wallet address</label>
+        <input id="l-judge" placeholder="Judge address">
+        <div class="row"><button class="btn" onclick="liveCreate()">Create bet &amp; deposit</button></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>Open a bet</h2>
+        <label for="l-addr">Bet account address</label>
+        <input id="l-addr" placeholder="Bet address (shown after creating)">
+        <div class="row"><button class="btn alt" onclick="liveLoad()">Load</button></div>
+        <div id="l-bet"></div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>Transaction log</h2>
+        <pre class="log" id="l-log"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- shared ----------
+const fmt = (n) => (Math.round(n * 1e4) / 1e4).toLocaleString(undefined, { maximumFractionDigits: 4 });
+function logTo(id, msg, cls = "info") {
+  const el = document.getElementById(id);
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = `${new Date().toLocaleTimeString()}  ${msg}`;
+  el.prepend(line);
+}
+function setMode(m) {
+  document.getElementById("demo").classList.toggle("hidden", m !== "demo");
+  document.getElementById("live").classList.toggle("hidden", m !== "live");
+  document.getElementById("tab-demo").classList.toggle("on", m === "demo");
+  document.getElementById("tab-live").classList.toggle("on", m === "live");
+}
+// Same error messages as the on-chain program (BetError).
+const ERR = {
+  ZeroAmount: "Stake must be greater than zero",
+  DescriptionLength: "Description must be 1-100 bytes",
+  SamePlayers: "Player B must be a different wallet",
+  JudgeIsPlayer: "The judge cannot be one of the players",
+  NotPlayerB: "Only player B can accept this bet",
+  AlreadyAccepted: "This bet was already accepted",
+  NotAccepted: "Both players must deposit before settling",
+  NotJudge: "Only the judge can settle this bet",
+  NotPlayerA: "Only player A can cancel this bet",
+};
+
+// ---------- DEMO MODE: simulates the program's rules in the browser ----------
+const people = [
+  { id: "alice", name: "Alice", sol: 10 },
+  { id: "bob", name: "Bob", sol: 10 },
+  { id: "jude", name: "Jude", sol: 10 },
+];
+let me = "alice";
+let bets = [];
+let nextId = 1;
+const byId = (id) => people.find((p) => p.id === id);
+const nameOf = (id) => byId(id).name;
+
+function renderWallets() {
+  const w = document.getElementById("wallets");
+  w.innerHTML = "";
+  for (const p of people) {
+    const b = document.createElement("button");
+    b.className = "wallet" + (p.id === me ? " on" : "");
+    b.innerHTML = `<b>${p.name}</b><span>${fmt(p.sol)} SOL</span>`;
+    b.onclick = () => { me = p.id; renderAll(); };
+    w.appendChild(b);
+  }
+  for (const sel of ["d-b", "d-judge"]) {
+    const s = document.getElementById(sel);
+    const prev = s.value;
+    s.innerHTML = people.filter((p) => p.id !== me)
+      .map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+    if ([...s.options].some((o) => o.value === prev)) s.value = prev;
+  }
+  const others = people.filter((p) => p.id !== me);
+  if (document.getElementById("d-b").value === document.getElementById("d-judge").value && others[1]) {
+    document.getElementById("d-judge").value = others[1].id;
+  }
+}
+
+function fail(code) {
+  logTo("log", `✗ ${nameOf(me)}: Error ${code}: ${ERR[code]}`, "err");
+  return false;
+}
+
+function demoCreate() {
+  const desc = document.getElementById("d-desc").value.trim();
+  const stake = parseFloat(document.getElementById("d-stake").value);
+  const b = document.getElementById("d-b").value;
+  const judge = document.getElementById("d-judge").value;
+  if (!(stake > 0)) return fail("ZeroAmount");
+  if (!desc || new TextEncoder().encode(desc).length > 100) return fail("DescriptionLength");
+  if (b === me) return fail("SamePlayers");
+  if (judge === me || judge === b) return fail("JudgeIsPlayer");
+  if (byId(me).sol < stake) return logTo("log", `✗ ${nameOf(me)}: insufficient funds`, "err");
+  byId(me).sol -= stake;
+  const bet = { id: nextId++, desc, stake, a: me, b, judge, vault: stake, state: "open", winner: null };
+  bets.unshift(bet);
+  logTo("log", `✓ create_bet #${bet.id} by ${nameOf(me)}: ${fmt(stake)} SOL moved into the bet account`, "ok");
+  renderAll();
+}
+
+function demoAccept(id) {
+  const bet = bets.find((x) => x.id === id);
+  if (bet.state !== "open") return fail("AlreadyAccepted");
+  if (me !== bet.b) return fail("NotPlayerB");
+  if (byId(me).sol < bet.stake) return logTo("log", `✗ ${nameOf(me)}: insufficient funds`, "err");
+  byId(me).sol -= bet.stake;
+  bet.vault += bet.stake;
+  bet.state = "locked";
+  logTo("log", `✓ accept_bet #${id} by ${nameOf(me)}: pot is now ${fmt(bet.vault)} SOL and locked`, "ok");
+  renderAll();
+}
+
+function demoSettle(id, winner) {
+  const bet = bets.find((x) => x.id === id);
+  if (me !== bet.judge) return fail("NotJudge");
+  if (bet.state !== "locked") return fail("NotAccepted");
+  byId(winner).sol += bet.vault;
+  logTo("log", `✓ settle #${id} by judge ${nameOf(me)}: ${nameOf(winner)} wins ${fmt(bet.vault)} SOL, bet account closed`, "ok");
+  bet.vault = 0; bet.state = "won"; bet.winner = winner;
+  renderAll();
+}
+
+function demoCancel(id) {
+  const bet = bets.find((x) => x.id === id);
+  if (me !== bet.a) return fail("NotPlayerA");
+  if (bet.state !== "open") return fail("AlreadyAccepted");
+  byId(me).sol += bet.vault;
+  logTo("log", `✓ cancel_bet #${id} by ${nameOf(me)}: ${fmt(bet.vault)} SOL refunded, bet account closed`, "ok");
+  bet.vault = 0; bet.state = "cancelled";
+  renderAll();
+}
+
+const STATUS = {
+  open: ["open", "Waiting for opponent"],
+  locked: ["locked", "Pot locked, waiting for judge"],
+  won: ["won", "Settled"],
+  cancelled: ["cancelled", "Cancelled"],
+};
+
+function renderBets() {
+  const el = document.getElementById("bets");
+  if (!bets.length) { el.innerHTML = `<div class="empty">No bets yet. Create one on the left.</div>`; return; }
+  el.innerHTML = "";
+  for (const bet of bets) {
+    const [cls, label] = STATUS[bet.state];
+    const stepCls = (i) => bet.state === "cancelled" ? (i === 0 ? "done" : "cancel")
+      : (i <= ({ open: 0, locked: 1, won: 2 })[bet.state] ? "done" : "");
+    const d = document.createElement("div");
+    d.className = "bet";
+    d.innerHTML = `
+      <div class="bet-top"><q></q><span class="pot">${fmt(bet.state === "won" ? bet.stake * 2 : bet.vault)} SOL</span></div>
+      <div class="steps"><div class="${stepCls(0)}"></div><div class="${stepCls(1)}"></div><div class="${stepCls(2)}"></div></div>
+      <span class="badge ${cls}">${label}${bet.winner ? ": " + nameOf(bet.winner) + " won" : ""}</span>
+      <div class="meta">
+        <span>Bet</span><code>#${bet.id}</code>
+        <span>Player A</span><code>${nameOf(bet.a)}</code>
+        <span>Player B</span><code>${nameOf(bet.b)}</code>
+        <span>Judge</span><code>${nameOf(bet.judge)}</code>
+        <span>Stake</span><code>${fmt(bet.stake)} SOL each</code>
+      </div>
+      <div class="row"></div>`;
+    d.querySelector("q").textContent = bet.desc;
+    const row = d.querySelector(".row");
+    const add = (text, fn, style = "btn alt") => {
+      const b = document.createElement("button");
+      b.className = style; b.textContent = text; b.onclick = fn; row.appendChild(b);
+    };
+    if (bet.state === "open") {
+      add(`Accept as ${nameOf(me)}`, () => demoAccept(bet.id), "btn");
+      add("Cancel", () => demoCancel(bet.id));
+    }
+    if (bet.state === "locked") {
+      add(`${nameOf(bet.a)} wins`, () => demoSettle(bet.id, bet.a), "btn good");
+      add(`${nameOf(bet.b)} wins`, () => demoSettle(bet.id, bet.b), "btn good");
+    }
+    el.appendChild(d);
+  }
+}
+
+function renderAll() { renderWallets(); renderBets(); }
+renderAll();
+logTo("log", "Demo mode: balances are simulated with the same rules as the on-chain program.", "info");
+
+// ---------- LIVE MODE: real transactions on devnet via Phantom ----------
+const W = window.solanaWeb3;
+const conn = W ? new W.Connection("https://api.devnet.solana.com", "confirmed") : null;
+let provider = null, wallet = null;
+const enc = new TextEncoder();
+
+// Anchor instruction discriminators: first 8 bytes of sha256("global:<name>").
+const DISC = {
+  create_bet: "c52a99023b3f8ff6",
+  accept_bet: "fb1955dd2945bffc",
+  settle: "af2ab957908366d4",
+  cancel_bet: "11f8828099e3e709",
+};
+async function disc(name) {
+  return Uint8Array.from(DISC[name].match(/../g).map((h) => parseInt(h, 16)));
+}
+function u64(n) { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b; }
+function str(s) { const bytes = enc.encode(s); const len = new Uint8Array(4); new DataView(len.buffer).setUint32(0, bytes.length, true); return concat(len, bytes); }
+function concat(...parts) { const out = new Uint8Array(parts.reduce((a, p) => a + p.length, 0)); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; }
+const pid = () => new W.PublicKey(document.getElementById("l-pid").value.trim());
+const betPda = (a, id) => W.PublicKey.findProgramAddressSync([enc.encode("bet"), a.toBytes(), u64(id)], pid())[0];
+const explorer = (kind, v) => `https://explorer.solana.com/${kind}/${v}?cluster=devnet`;
+
+async function liveConnect() {
+  try {
+    provider = window.phantom?.solana || window.solana;
+    if (!provider) return logTo("l-log", "No Solana wallet found. Install Phantom, switch it to Devnet, and reload.", "err");
+    const res = await provider.connect();
+    wallet = res.publicKey;
+    const bal = await conn.getBalance(wallet);
+    document.getElementById("l-who").textContent = `Connected: ${wallet.toBase58()} (${fmt(bal / W.LAMPORTS_PER_SOL)} devnet SOL)`;
+    logTo("l-log", "Wallet connected.", "ok");
+  } catch (e) { logTo("l-log", "Connect failed: " + e.message, "err"); }
+}
+
+async function send(ix, label) {
+  if (!wallet) throw new Error("Connect your wallet first");
+  const tx = new W.Transaction().add(ix);
+  tx.feePayer = wallet;
+  tx.recentBlockhash = (await conn.getLatestBlockhash()).blockhash;
+  const { signature } = await provider.signAndSendTransaction(tx);
+  await conn.confirmTransaction(signature, "confirmed");
+  logTo("l-log", `✓ ${label}: ${explorer("tx", signature)}`, "ok");
+  return signature;
+}
+function explain(e) {
+  const m = String(e?.message || e);
+  const code = m.match(/custom program error: 0x([0-9a-f]+)/i);
+  if (code) {
+    const names = Object.keys(ERR);
+    const idx = parseInt(code[1], 16) - 6000;
+    return names[idx] ? `${names[idx]}: ${ERR[names[idx]]}` : m;
+  }
+  return m;
+}
+
+async function liveCreate() {
+  try {
+    const desc = document.getElementById("l-desc").value.trim();
+    const stake = Math.round(parseFloat(document.getElementById("l-stake").value) * W.LAMPORTS_PER_SOL);
+    const b = new W.PublicKey(document.getElementById("l-b").value.trim());
+    const judge = new W.PublicKey(document.getElementById("l-judge").value.trim());
+    const id = Date.now();
+    const bet = betPda(wallet, id);
+    const data = concat(await disc("create_bet"), u64(id), str(desc), u64(stake), b.toBytes(), judge.toBytes());
+    const ix = new W.TransactionInstruction({ programId: pid(), data, keys: [
+      { pubkey: bet, isSigner: false, isWritable: true },
+      { pubkey: wallet, isSigner: true, isWritable: true },
+      { pubkey: W.SystemProgram.programId, isSigner: false, isWritable: false },
+    ]});
+    await send(ix, "create_bet");
+    document.getElementById("l-addr").value = bet.toBase58();
+    logTo("l-log", `Bet account: ${bet.toBase58()} (share this with your opponent and judge)`, "info");
+    await liveLoad();
+  } catch (e) { logTo("l-log", "✗ " + explain(e), "err"); }
+}
+
+async function fetchBet(addr) {
+  const info = await conn.getAccountInfo(addr);
+  if (!info) return null;
+  const d = info.data; let o = 8;
+  const pk = () => { const k = new W.PublicKey(d.slice(o, o + 32)); o += 32; return k; };
+  const rd64 = () => { const v = new DataView(d.buffer, d.byteOffset + o, 8).getBigUint64(0, true); o += 8; return v; };
+  const playerA = pk(), playerB = pk(), judge = pk();
+  const betId = rd64(), amount = rd64();
+  const accepted = d[o] === 1; o += 1;
+  const len = new DataView(d.buffer, d.byteOffset + o, 4).getUint32(0, true); o += 4;
+  const description = new TextDecoder().decode(d.slice(o, o + len));
+  return { playerA, playerB, judge, betId, amount, accepted, description };
+}
+
+let current = null;
+async function liveLoad() {
+  const box = document.getElementById("l-bet");
+  try {
+    const addr = new W.PublicKey(document.getElementById("l-addr").value.trim());
+    const bet = await fetchBet(addr);
+    if (!bet) { box.innerHTML = `<p class="note">No bet at this address. It was settled or cancelled (accounts are closed when done), or the address is wrong.</p>`; return; }
+    current = { addr, ...bet };
+    const sol = Number(bet.amount) / W.LAMPORTS_PER_SOL;
+    const short = (k) => k.toBase58().slice(0, 4) + "…" + k.toBase58().slice(-4);
+    box.innerHTML = `<div class="bet">
+      <div class="bet-top"><q></q><span class="pot">${fmt(bet.accepted ? sol * 2 : sol)} SOL</span></div>
+      <div class="steps"><div class="done"></div><div class="${bet.accepted ? "done" : ""}"></div><div></div></div>
+      <span class="badge ${bet.accepted ? "locked" : "open"}">${bet.accepted ? "Pot locked, waiting for judge" : "Waiting for opponent"}</span>
+      <div class="meta">
+        <span>Player A</span><code>${short(bet.playerA)}</code>
+        <span>Player B</span><code>${short(bet.playerB)}</code>
+        <span>Judge</span><code>${short(bet.judge)}</code>
+        <span>Account</span><code><a target="_blank" rel="noopener" href="${explorer("address", addr.toBase58())}">${short(addr)}</a></code>
+      </div>
+      <div class="row">
+        ${bet.accepted ? `<button class="btn good" onclick="liveSettle('a')">Player A wins</button>
+                          <button class="btn good" onclick="liveSettle('b')">Player B wins</button>`
+                       : `<button class="btn" onclick="liveAccept()">Accept &amp; deposit</button>
+                          <button class="btn alt" onclick="liveCancel()">Cancel</button>`}
+      </div></div>`;
+    box.querySelector("q").textContent = bet.description;
+  } catch (e) { logTo("l-log", "✗ " + explain(e), "err"); }
+}
+
+async function liveAccept() {
+  try {
+    const ix = new W.TransactionInstruction({ programId: pid(), data: await disc("accept_bet"), keys: [
+      { pubkey: current.addr, isSigner: false, isWritable: true },
+      { pubkey: wallet, isSigner: true, isWritable: true },
+      { pubkey: W.SystemProgram.programId, isSigner: false, isWritable: false },
+    ]});
+    await send(ix, "accept_bet"); await liveLoad();
+  } catch (e) { logTo("l-log", "✗ " + explain(e), "err"); }
+}
+
+async function liveSettle(who) {
+  try {
+    const winner = who === "a" ? current.playerA : current.playerB;
+    const ix = new W.TransactionInstruction({ programId: pid(), data: concat(await disc("settle"), winner.toBytes()), keys: [
+      { pubkey: current.addr, isSigner: false, isWritable: true },
+      { pubkey: wallet, isSigner: true, isWritable: false },
+      { pubkey: current.playerA, isSigner: false, isWritable: true },
+      { pubkey: current.playerB, isSigner: false, isWritable: true },
+    ]});
+    await send(ix, "settle"); await liveLoad();
+  } catch (e) { logTo("l-log", "✗ " + explain(e), "err"); }
+}
+
+async function liveCancel() {
+  try {
+    const ix = new W.TransactionInstruction({ programId: pid(), data: await disc("cancel_bet"), keys: [
+      { pubkey: current.addr, isSigner: false, isWritable: true },
+      { pubkey: wallet, isSigner: true, isWritable: true },
+    ]});
+    await send(ix, "cancel_bet"); await liveLoad();
+  } catch (e) { logTo("l-log", "✗ " + explain(e), "err"); }
+}
+if (!W) logTo("l-log", "Could not load @solana/web3.js from the CDN; Devnet mode is unavailable.", "err");
+else logTo("l-log", "Paste your program ID after deploying in Solana Playground, then connect Phantom (set to Devnet).", "info");
+</script>
+</body>
+</html>
